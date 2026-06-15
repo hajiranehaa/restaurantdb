@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bill Receipt</title>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background:#f2f2f2;
+    padding:20px;
+}
+
+.bill-box{
+    width:420px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 0 10px rgba(0,0,0,0.2);
+}
+
+h2,h3{
+    text-align:center;
+    margin:5px 0;
+}
+
+.info{
+    text-align:center;
+    margin-bottom:15px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
+
+th,td{
+    border-bottom:1px solid #ddd;
+    padding:8px;
+    text-align:center;
+}
+
+.total{
+    text-align:right;
+    margin-top:10px;
+    font-size:18px;
+    font-weight:bold;
+}
+
+button{
+    width:100%;
+    padding:10px;
+    margin-top:15px;
+    background:black;
+    color:white;
+    border:none;
+    cursor:pointer;
+    border-radius:6px;
+}
+
+@media print {
+    button{
+        display:none;
+    }
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="bill-box">
+
+    <h2>🍽️ TasteKaAvenger
+             Bill</h2>
+
+    <div class="info">
+        <p><b>Bill No:</b> {{ order.bill_no }}</p>
+        <p><b>Order ID:</b> {{ order.order_id }}</p>
+    </div>
+
+    <table>
+        <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Total</th>
+        </tr>
+
+        {% for item in items %}
+        <tr>
+            <td>{{ item.item_name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>₹{{ item.item_price }}</td>
+            <td>₹{{ item.subtotal }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="total">
+        Total: ₹{{ order.total_amount }}
+    </div>
+
+    <button onclick="window.print()">🖨️ Print Bill</button>
+
+</div>
+
+</body>
+</html>

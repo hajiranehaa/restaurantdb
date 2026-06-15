@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employees – TasteKaAvenger</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --deep-night: #0a0e1a;
+  --midnight: #0d1b3e;
+  --indigo: #1a237e;
+  --cobalt: #1565c0;
+  --cerulean: #1e88e5;
+  --sky: #42a5f5;
+  --pale-blue: #90caf9;
+  --gold: #f9a825;
+  --amber: #ffb300;
+  --cream: #fff8e1;
+  --white-glow: rgba(255,255,255,0.08);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  min-height: 100vh;
+  background: var(--deep-night);
+  font-family: 'Crimson Pro', serif;
+  overflow-x: hidden;
+  cursor: none;
+  color: var(--cream);
+}
+
+.cursor {
+  position: fixed;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff9c4, #ffb300);
+  box-shadow: 0 0 12px 4px rgba(255,200,50,0.7);
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%,-50%);
+  transition: width 0.2s, height 0.2s;
+}
+
+canvas#sky {
+  position: fixed; top:0; left:0;
+  width:100%; height:100%; z-index:0;
+}
+
+.swirl-overlay {
+  position: fixed; top:0; left:0;
+  width:100%; height:100%;
+  z-index:1; pointer-events:none;
+  background:
+    radial-gradient(ellipse 120% 60% at 15% 20%, rgba(21,101,192,0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 80% at 80% 10%, rgba(26,35,126,0.22) 0%, transparent 65%),
+    radial-gradient(ellipse 100% 50% at 50% 80%, rgba(13,27,62,0.35) 0%, transparent 70%);
+}
+
+.grain {
+  position:fixed; inset:0; z-index:2; pointer-events:none; opacity:0.045;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat:repeat; background-size:200px;
+}
+
+nav {
+  position:relative; z-index:10;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 40px;
+  background:linear-gradient(90deg,rgba(10,14,26,0.9),rgba(13,27,62,0.7),rgba(10,14,26,0.9));
+  border-bottom:1px solid rgba(144,202,249,0.15);
+  backdrop-filter:blur(14px);
+}
+
+.nav-brand {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:1.1rem; color:var(--cream);
+  letter-spacing:0.06em;
+  text-shadow:0 0 20px rgba(255,200,50,0.5),0 0 40px rgba(66,165,245,0.3);
+  display:flex; align-items:center; gap:12px; text-decoration:none;
+}
+
+.nav-star {
+  display:inline-block; width:26px; height:26px;
+  background:radial-gradient(circle,#fff9c4 20%,#ffb300 60%,transparent 100%);
+  border-radius:50%; box-shadow:0 0 14px 6px rgba(255,183,0,0.5);
+  animation:pulse-star 3s ease-in-out infinite; flex-shrink:0;
+}
+
+@keyframes pulse-star {
+  0%,100%{transform:scale(1);box-shadow:0 0 14px 6px rgba(255,183,0,0.5);}
+  50%{transform:scale(1.15);box-shadow:0 0 22px 10px rgba(255,183,0,0.8);}
+}
+
+.nav-back {
+  font-family:'Cinzel Decorative',cursive; font-size:0.75rem;
+  letter-spacing:0.1em; color:var(--pale-blue); text-decoration:none;
+  padding:8px 22px; border:1px solid rgba(144,202,249,0.35);
+  border-radius:50px; backdrop-filter:blur(8px); transition:all 0.3s;
+}
+.nav-back:hover { background:rgba(66,165,245,0.12); border-color:rgba(144,202,249,0.8); color:white; }
+
+.content {
+  position:relative; z-index:5;
+  padding:50px 30px 80px;
+  max-width:1200px; margin:0 auto;
+}
+
+.page-title {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:clamp(1.4rem,3vw,2.2rem);
+  text-align:center; margin-bottom:8px;
+  background:linear-gradient(135deg,#fff9c4 0%,#ffffff 40%,#90caf9 70%,#42a5f5 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  filter:drop-shadow(0 0 20px rgba(66,165,245,0.4));
+  opacity:0; animation:fadeUp 1s 0.3s forwards;
+}
+
+.page-sub {
+  text-align:center; font-style:italic;
+  color:rgba(144,202,249,0.55); font-size:0.95rem;
+  margin-bottom:30px;
+  opacity:0; animation:fadeUp 1s 0.5s forwards;
+}
+
+@keyframes fadeUp {
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* STATS CARD */
+.stats-card {
+  background:rgba(13,27,62,0.5);
+  backdrop-filter:blur(18px);
+  border:1px solid rgba(144,202,249,0.15);
+  border-radius:16px; padding:20px 30px;
+  text-align:center; margin-bottom:24px;
+  opacity:0; animation:fadeUp 1s 0.6s forwards;
+}
+
+.stats-card h4 {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:0.85rem; letter-spacing:0.1em; color:var(--sky);
+}
+
+.stats-card span {
+  font-size:2rem; color:var(--amber);
+  font-family:'Cinzel Decorative',cursive;
+}
+
+/* ADD FORM */
+.add-form-card {
+  background:rgba(13,27,62,0.5);
+  backdrop-filter:blur(18px);
+  border:1px solid rgba(144,202,249,0.15);
+  border-radius:16px; padding:24px;
+  margin-bottom:24px;
+  opacity:0; animation:fadeUp 1s 0.7s forwards;
+}
+
+.add-form-card h4 {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:0.82rem; letter-spacing:0.1em;
+  color:var(--gold); margin-bottom:16px;
+}
+
+.form-control {
+  background:rgba(255,255,255,0.06) !important;
+  border:1px solid rgba(144,202,249,0.25) !important;
+  color:var(--cream) !important;
+  border-radius:10px;
+}
+
+.form-control::placeholder { color:rgba(144,202,249,0.4) !important; }
+.form-control:focus {
+  background:rgba(255,255,255,0.1) !important;
+  border-color:rgba(144,202,249,0.6) !important;
+  box-shadow:0 0 0 3px rgba(66,165,245,0.15) !important;
+  color:var(--cream) !important;
+}
+
+.btn-add {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:0.72rem; letter-spacing:0.1em;
+  padding:10px 24px; border-radius:50px; border:none;
+  background:linear-gradient(135deg,#fff9c4,#ffb300);
+  color:#1a0a00; cursor:none; width:100%;
+  transition:transform 0.2s, box-shadow 0.2s;
+}
+.btn-add:hover { transform:translateY(-2px); box-shadow:0 0 16px rgba(255,183,0,0.5); }
+
+/* TABLE */
+.glass-table {
+  background:rgba(13,27,62,0.5);
+  backdrop-filter:blur(18px);
+  border:1px solid rgba(144,202,249,0.15);
+  border-radius:20px; overflow:hidden;
+  opacity:0; animation:fadeUp 1s 0.8s forwards;
+}
+
+table { width:100%; border-collapse:collapse; }
+
+thead tr {
+  background:rgba(21,101,192,0.35);
+  border-bottom:1px solid rgba(144,202,249,0.2);
+}
+
+thead th {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:0.68rem; letter-spacing:0.1em;
+  color:var(--sky); padding:16px 14px;
+  text-align:center; font-weight:400;
+}
+
+tbody tr {
+  border-bottom:1px solid rgba(144,202,249,0.07);
+  transition:background 0.3s;
+}
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:rgba(66,165,245,0.08); }
+
+tbody td {
+  padding:14px; text-align:center;
+  font-size:0.95rem; color:rgba(255,248,225,0.85);
+}
+
+.emp-id { font-family:'Cinzel Decorative',cursive; font-size:0.75rem; color:var(--amber); }
+.emp-name { color:white; font-size:1rem; }
+.emp-role {
+  font-style:italic; color:var(--sky);
+  font-size:0.88rem;
+}
+.salary-cell { color:#a5d6a7; font-family:'Cinzel Decorative',cursive; font-size:0.78rem; }
+.bonus-cell { color:#fff59d; font-family:'Cinzel Decorative',cursive; font-size:0.78rem; }
+
+.btn-update {
+  font-family:'Cinzel Decorative',cursive; font-size:0.62rem;
+  letter-spacing:0.08em; padding:6px 14px; border-radius:50px; border:none;
+  background:linear-gradient(135deg,#fff9c4,#ffb300);
+  color:#1a0a00; cursor:none; margin-right:6px;
+  transition:transform 0.2s,box-shadow 0.2s;
+}
+.btn-update:hover { transform:translateY(-2px); box-shadow:0 0 14px rgba(255,183,0,0.5); }
+
+.btn-delete {
+  font-family:'Cinzel Decorative',cursive; font-size:0.62rem;
+  letter-spacing:0.08em; padding:6px 14px; border-radius:50px;
+  border:1px solid rgba(239,83,80,0.5);
+  background:rgba(239,83,80,0.12); color:#ef9a9a; cursor:none;
+  transition:transform 0.2s,box-shadow 0.2s,background 0.2s;
+}
+.btn-delete:hover { transform:translateY(-2px); background:rgba(239,83,80,0.25); box-shadow:0 0 14px rgba(239,83,80,0.3); color:#ffcdd2; }
+
+.footer-line {
+  position:relative; z-index:5; text-align:center;
+  padding:18px; font-style:italic; font-size:0.82rem;
+  color:rgba(144,202,249,0.3);
+  border-top:1px solid rgba(144,202,249,0.07);
+  letter-spacing:0.08em;
+}
+
+/* UPDATE MODAL */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.7); z-index:100;
+  align-items:center; justify-content:center;
+}
+.modal-overlay.active { display:flex; }
+
+.modal-box {
+  background:rgba(13,27,62,0.95);
+  backdrop-filter:blur(20px);
+  border:1px solid rgba(144,202,249,0.25);
+  border-radius:20px; padding:32px;
+  width:90%; max-width:500px;
+}
+
+.modal-box h4 {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:0.85rem; letter-spacing:0.1em;
+  color:var(--gold); margin-bottom:20px; text-align:center;
+}
+
+.modal-actions { display:flex; gap:12px; margin-top:20px; }
+
+.btn-save {
+  font-family:'Cinzel Decorative',cursive; font-size:0.72rem;
+  letter-spacing:0.1em; padding:10px 24px; border-radius:50px; border:none;
+  background:linear-gradient(135deg,#fff9c4,#ffb300);
+  color:#1a0a00; cursor:none; flex:1;
+  transition:transform 0.2s,box-shadow 0.2s;
+}
+.btn-save:hover { transform:translateY(-2px); box-shadow:0 0 16px rgba(255,183,0,0.5); }
+
+.btn-cancel {
+  font-family:'Cinzel Decorative',cursive; font-size:0.72rem;
+  letter-spacing:0.1em; padding:10px 24px; border-radius:50px;
+  border:1px solid rgba(144,202,249,0.35);
+  background:transparent; color:var(--pale-blue); cursor:none; flex:1;
+  transition:all 0.3s;
+}
+.btn-cancel:hover { background:rgba(66,165,245,0.12); border-color:rgba(144,202,249,0.8); color:white; }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="grain"></div>
+<canvas id="sky"></canvas>
+<div class="swirl-overlay"></div>
+
+<nav>
+  <a href="/" class="nav-brand"><span class="nav-star"></span>TasteKaAvenger</a>
+  <a href="/admin" class="nav-back">← Back</a>
+</nav>
+
+<div class="content">
+
+  <h1 class="page-title">✦ Employees ✦</h1>
+  <p class="page-sub">Your team, recorded beneath the stars</p>
+
+  <div class="stats-card">
+    <h4>Total Staff</h4>
+    <span id="totalStaff">—</span>
+  </div>
+
+  <div class="add-form-card">
+    <h4>✦ Add New Employee</h4>
+    <div class="row g-3">
+      <div class="col-md-2">
+        <input type="text" class="form-control" placeholder="Name" id="name">
+      </div>
+      <div class="col-md-2">
+        <input type="text" class="form-control" placeholder="Role" id="role">
+      </div>
+      <div class="col-md-2">
+        <input type="number" class="form-control" placeholder="Manager ID" id="manager">
+      </div>
+      <div class="col-md-2">
+        <input type="number" class="form-control" placeholder="Salary" id="salary">
+      </div>
+      <div class="col-md-2">
+        <input type="number" class="form-control" placeholder="Bonus" id="bonus">
+      </div>
+      <div class="col-md-2">
+        <button class="btn-add" onclick="addEmployee()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass-table">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Name</th><th>Role</th>
+          <th>Manager ID</th><th>Salary</th><th>Bonus</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="employeeTable"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- UPDATE MODAL -->
+<div class="modal-overlay" id="updateModal">
+  <div class="modal-box">
+    <h4>✦ Update Employee</h4>
+    <input type="hidden" id="editId">
+    <div class="row g-3">
+      <div class="col-12">
+        <input type="text" class="form-control" placeholder="Name" id="editName">
+      </div>
+      <div class="col-12">
+        <input type="text" class="form-control" placeholder="Role" id="editRole">
+      </div>
+      <div class="col-12">
+        <input type="number" class="form-control" placeholder="Manager ID" id="editManager">
+      </div>
+      <div class="col-12">
+        <input type="number" class="form-control" placeholder="Salary" id="editSalary">
+      </div>
+      <div class="col-12">
+        <input type="number" class="form-control" placeholder="Bonus" id="editBonus">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-save" onclick="saveUpdate()">Save</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<footer class="footer-line">
+  "The sight of stars always makes me dream" — Vincent van Gogh
+</footer>
+
+<script>
+
+/* ── Load employees from DB ── */
+async function loadEmployees() {
+  const res  = await fetch('/get_employees');
+  const data = await res.json();
+
+  document.getElementById('totalStaff').innerText = data.length;
+
+  const tbody = document.getElementById('employeeTable');
+  tbody.innerHTML = '';
+
+  data.forEach(emp => {
+    tbody.innerHTML += `
+    <tr>
+      <td><span class="emp-id">${emp.employee_id}</span></td>
+      <td><span class="emp-name">${emp.employee_name}</span></td>
+      <td><span class="emp-role">${emp.role}</span></td>
+      <td>${emp.manager_id !== null ? emp.manager_id : '—'}</td>
+      <td><span class="salary-cell">₹${emp.salary}</span></td>
+      <td><span class="bonus-cell">₹${emp.bonus}</span></td>
+      <td>
+        <button class="btn-update" onclick='openModal(${JSON.stringify(emp)})'>Update</button>
+        <button class="btn-delete" onclick="deleteEmployee(${emp.employee_id})">Delete</button>
+      </td>
+    </tr>`;
+  });
+}
+
+/* ── Add ── */
+async function addEmployee() {
+  const name    = document.getElementById('name').value.trim();
+  const role    = document.getElementById('role').value.trim();
+  const manager = document.getElementById('manager').value;
+  const salary  = document.getElementById('salary').value;
+  const bonus   = document.getElementById('bonus').value;
+
+  if (!name || !role || !salary || !bonus) {
+    alert('Please fill all required fields.');
+    return;
+  }
+
+  await fetch('/add_employee', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, role, manager, salary, bonus })
+  });
+
+  // clear fields
+  ['name','role','manager','salary','bonus'].forEach(id =>
+    document.getElementById(id).value = '');
+
+  loadEmployees();
+}
+
+/* ── Delete ── */
+async function deleteEmployee(id) {
+  if (!confirm('Delete this employee?')) return;
+
+  await fetch(`/delete_employee/${id}`, { method: 'POST' });
+  loadEmployees();
+}
+
+/* ── Update modal ── */
+function openModal(emp) {
+  document.getElementById('editId').value      = emp.employee_id;
+  document.getElementById('editName').value    = emp.employee_name;
+  document.getElementById('editRole').value    = emp.role;
+  document.getElementById('editManager').value = emp.manager_id || '';
+  document.getElementById('editSalary').value  = emp.salary;
+  document.getElementById('editBonus').value   = emp.bonus;
+  document.getElementById('updateModal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('updateModal').classList.remove('active');
+}
+
+async function saveUpdate() {
+  const id = document.getElementById('editId').value;
+
+  await fetch(`/update_employee/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name:    document.getElementById('editName').value,
+      role:    document.getElementById('editRole').value,
+      manager: document.getElementById('editManager').value,
+      salary:  document.getElementById('editSalary').value,
+      bonus:   document.getElementById('editBonus').value,
+    })
+  });
+
+  closeModal();
+  loadEmployees();
+}
+
+/* ── Cursor ── */
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top  = e.clientY + 'px';
+});
+
+/* ── Canvas (same as index.html) ── */
+const canvas = document.getElementById('sky');
+const ctx = canvas.getContext('2d');
+function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resize(); window.addEventListener('resize',resize);
+function drawSky(){const w=canvas.width,h=canvas.height;const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,'#02040d');g.addColorStop(0.18,'#050c22');g.addColorStop(0.45,'#0a1a4a');g.addColorStop(0.75,'#0d2060');g.addColorStop(1,'#030b1e');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);}
+const swirls=[];
+function initSwirls(){const w=canvas.width,h=canvas.height;for(let i=0;i<22;i++)swirls.push({x:Math.random()*w,y:Math.random()*h*0.7,radius:40+Math.random()*120,angleOffset:Math.random()*Math.PI*2,speed:0.003+Math.random()*0.006,alpha:0.04+Math.random()*0.08,colorIdx:Math.floor(Math.random()*3),t:Math.random()*100});}
+initSwirls();
+const swirlColors=['rgba(30,136,229,','rgba(21,101,192,','rgba(66,165,245,'];
+function drawSwirl(s,t){ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=s.alpha*(0.7+0.3*Math.sin(t*s.speed*3));const g=ctx.createRadialGradient(0,0,0,0,0,s.radius);g.addColorStop(0,swirlColors[s.colorIdx]+'0.35)');g.addColorStop(0.4,swirlColors[s.colorIdx]+'0.12)');g.addColorStop(1,swirlColors[s.colorIdx]+'0)');ctx.beginPath();for(let a=0;a<Math.PI*4;a+=0.05){const r=(a/(Math.PI*4))*s.radius;const da=s.angleOffset+a+Math.sin(t*s.speed+a*0.5)*0.4;const px=Math.cos(da)*r;const py=Math.sin(da)*r*0.5;a===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}ctx.strokeStyle=swirlColors[s.colorIdx]+(s.alpha*1.5)+')';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,s.radius,s.radius*0.55,s.angleOffset+t*s.speed*0.2,0,Math.PI*2);ctx.fill();ctx.restore();}
+const stars=[];
+function initStars(){const w=canvas.width,h=canvas.height;const n=Math.floor(w*h/3000);for(let i=0;i<n;i++)stars.push({x:Math.random()*w,y:Math.random()*h*0.78,r:0.4+Math.random()*1.6,phase:Math.random()*Math.PI*2,speed:0.4+Math.random()*1.2,halo:Math.random()>0.85});}
+initStars();
+function drawStar(s,t){const tw=0.5+0.5*Math.sin(t*s.speed+s.phase);const al=0.5+0.5*tw;if(s.halo){const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r*6);g.addColorStop(0,`rgba(255,252,220,${0.25*tw})`);g.addColorStop(0.4,`rgba(144,202,249,${0.1*tw})`);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(s.x,s.y,s.r*6,0,Math.PI*2);ctx.fill();}ctx.beginPath();ctx.arc(s.x,s.y,s.r*(0.8+0.2*tw),0,Math.PI*2);ctx.fillStyle=`rgba(255,252,220,${al})`;ctx.fill();}
+function drawMoon(t){const w=canvas.width;const mx=w*0.82,my=100;const p=0.96+0.04*Math.sin(t*0.4);[80,55,35].forEach((r,i)=>{const g=ctx.createRadialGradient(mx,my,0,mx,my,r*p);g.addColorStop(0,`rgba(255,249,196,${0.04-i*0.01})`);g.addColorStop(0.5,`rgba(66,165,245,${0.03-i*0.005})`);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(mx,my,r*p,0,Math.PI*2);ctx.fill();});const mg=ctx.createRadialGradient(mx-5,my-5,2,mx,my,22*p);mg.addColorStop(0,'#fffde7');mg.addColorStop(0.6,'#fff9c4');mg.addColorStop(1,'#ffe082');ctx.beginPath();ctx.arc(mx,my,22*p,0,Math.PI*2);ctx.fillStyle=mg;ctx.shadowColor='#fff9c4';ctx.shadowBlur=30;ctx.fill();ctx.shadowBlur=0;}
+function drawHills(){const w=canvas.width,h=canvas.height;ctx.save();const hg=ctx.createLinearGradient(0,h*0.72,0,h);hg.addColorStop(0,'#05091a');hg.addColorStop(1,'#020408');ctx.fillStyle=hg;ctx.beginPath();ctx.moveTo(0,h);[[0,h*0.88],[w*0.12,h*0.78],[w*0.25,h*0.82],[w*0.38,h*0.75],[w*0.50,h*0.80],[w*0.63,h*0.73],[w*0.78,h*0.79],[w*0.88,h*0.76],[w,h*0.83],[w,h]].forEach(([px,py])=>ctx.lineTo(px,py));ctx.closePath();ctx.fill();ctx.restore();}
+let t=0;
+function animate(){t+=0.012;drawSky();swirls.forEach(s=>drawSwirl(s,t));stars.forEach(s=>drawStar(s,t));drawMoon(t);drawHills();requestAnimationFrame(animate);}
+animate();
+
+/* ── Init ── */
+loadEmployees();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurant Menu & Billing</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+
+/* COLOR THEME */
+:root{
+    --deep-night:#0a0f1f;
+    --midnight:#0f172a;
+    --indigo:#1e3a8a;
+    --cobalt:#1d4ed8;
+    --cerulean:#0284c7;
+    --sky:#38bdf8;
+    --pale-blue:#e0f2fe;
+    --gold:#facc15;
+    --amber:#f59e0b;
+    --cream:#fdf6e3;
+    --white-glow:rgba(255,255,255,0.08);
+}
+
+/* BACKGROUND */
+body{
+    min-height:100vh;
+    background: linear-gradient(
+        135deg,
+        var(--deep-night),
+        var(--midnight),
+        var(--indigo),
+        var(--cobalt),
+        var(--cerulean)
+    );
+    background-attachment: fixed;
+    color: var(--cream);
+}
+
+body::before{
+    display:none;
+}
+
+.container{
+    position:relative;
+    z-index:2;
+    padding-top:30px;
+}
+
+.glass{
+    background:var(--white-glow);
+    backdrop-filter:blur(14px);
+    border-radius:20px;
+    padding:20px;
+    margin-bottom:20px;
+    border:1px solid rgba(255,255,255,0.15);
+}
+
+.category-title{
+    color:var(--gold);
+    border-bottom:1px solid rgba(255,255,255,0.2);
+    padding-bottom:8px;
+    margin-bottom:15px;
+}
+
+.menu-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 0;
+    border-bottom:1px solid rgba(255,255,255,0.1);
+}
+
+.qty-controls{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.qty-display{
+    min-width:25px;
+    text-align:center;
+    font-weight:bold;
+}
+
+.cart-btn{
+    position:fixed;
+    top:20px;
+    right:20px;
+    z-index:9999;
+}
+
+.order-item{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 0;
+    border-bottom:1px solid #ddd;
+}
+
+.bill-section{
+    display:none;
+}
+
+.modal-content{
+    color:black;
+}
+
+@media print{
+    body *{
+        visibility:hidden;
+    }
+    #billArea,
+    #billArea *{
+        visibility:visible;
+    }
+    #billArea{
+        position:absolute;
+        top:0;
+        left:0;
+        width:100%;
+        background:white;
+        color:black;
+        padding:20px;
+    }
+    .no-print{
+        display:none;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<button
+class="btn btn-warning cart-btn"
+data-bs-toggle="modal"
+data-bs-target="#cartModal">
+🛒 Cart (<span id="cartCount">0</span>)
+</button>
+
+<div class="container">
+
+<h1 class="text-center mb-4">
+🍽 Restaurant Management System
+</h1>
+
+<div id="menuContainer"></div>
+
+<!-- BILL SECTION -->
+<div class="glass bill-section" id="billArea">
+
+<h2 class="text-center">TasteKaAvenger Bill</h2>
+<hr>
+<p><b>Order ID:</b> #<span id="billOrderId"></span></p>
+<p><b>Date:</b> <span id="date"></span></p>
+<hr>
+<div id="billItems"></div>
+<hr>
+<h3>Total Amount: ₹<span id="billTotal"></span></h3>
+
+<button
+class="btn btn-primary mt-3 no-print"
+onclick="window.print()">
+Print / Save PDF
+</button>
+
+</div>
+
+</div>
+
+<!-- CART POPUP -->
+<div class="modal fade" id="cartModal">
+<div class="modal-dialog">
+<div class="modal-content">
+
+<div class="modal-header">
+<h5 class="modal-title">Your Order</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+<div id="popupCart">No items added.</div>
+<hr>
+<h5>Total: ₹<span id="popupTotal">0</span></h5>
+</div>
+
+<div class="modal-footer">
+<button
+class="btn btn-success"
+onclick="generateBill()"
+data-bs-dismiss="modal">
+Place Order
+</button>
+</div>
+
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+
+// MENU WITH CORRECT item_id FROM DATABASE
+const menu = {
+    "Beverages":[
+        [101,"Espresso",80],
+        [102,"Cappuccino",120],
+        [103,"Cold Coffee",150],
+        [104,"Masala Chai",40]
+    ],
+    "Snacks":[
+        [105,"Veg Sandwich",90],
+        [106,"Samosa",30],
+        [107,"Burger",120],
+        [108,"French Fries",100]
+    ],
+    "Main Course":[
+        [109,"Chicken Biryani",180],
+        [110,"Veg Pulao",140],
+        [111,"Butter Chicken",220],
+        [112,"Roti Thali",160]
+    ],
+    "Chinese":[
+        [113,"Noodles",140],
+        [114,"Fried Rice",150],
+        [115,"Manchurian",160]
+    ],
+    "Fast Food":[
+        [116,"Pizza",250],
+        [117,"Cheese Sandwich",110]
+    ],
+    "Bakery":[
+        [118,"Brownie",120],
+        [119,"Croissant",130]
+    ],
+    "Dessert":[
+        [120,"Gulab Jamun",80],
+        [121,"Ice Cream Sundae",150]
+    ]
+};
+
+let cart = [];
+let total = 0;
+
+const menuContainer = document.getElementById("menuContainer");
+
+/* RENDER MENU */
+for(let category in menu){
+
+    let html = `
+    <div class="glass">
+    <h3 class="category-title">${category}</h3>
+    `;
+
+    menu[category].forEach(item=>{
+
+        let safeId = item[1].replace(/\s+/g,"_");
+
+        html += `
+        <div class="menu-item">
+            <span>${item[1]} - ₹${item[2]}</span>
+            <div class="qty-controls">
+                <button class="btn btn-danger btn-sm" onclick="decreaseItem('${item[1]}')">-</button>
+                <span class="qty-display" id="qty_${safeId}">0</span>
+                <button class="btn btn-warning btn-sm" onclick="addToCart(${item[0]},'${item[1]}',${item[2]})">+</button>
+            </div>
+        </div>
+        `;
+
+    });
+
+    html += `</div>`;
+    menuContainer.innerHTML += html;
+}
+
+/* ADD ITEM */
+function addToCart(item_id, name, price){
+
+    let existing = cart.find(item => item.name === name);
+
+    if(existing){
+        existing.qty++;
+        existing.subtotal = existing.qty * existing.price;
+    }
+    else{
+        cart.push({
+            item_id:  item_id,
+            name:     name,
+            price:    price,
+            qty:      1,
+            subtotal: price
+        });
+    }
+
+    updateQtyDisplay(name);
+    calculateTotal();
+    renderCart();
+}
+
+/* DECREASE ITEM */
+function decreaseItem(name){
+
+    let index = cart.findIndex(item => item.name === name);
+
+    if(index === -1) return;
+
+    if(cart[index].qty > 1){
+        cart[index].qty--;
+        cart[index].subtotal = cart[index].qty * cart[index].price;
+    }
+    else{
+        cart.splice(index, 1);
+    }
+
+    updateQtyDisplay(name);
+    calculateTotal();
+    renderCart();
+}
+
+/* UPDATE MENU QUANTITY DISPLAY */
+function updateQtyDisplay(name){
+
+    let safeId = name.replace(/\s+/g,"_");
+    let item   = cart.find(x => x.name === name);
+
+    document.getElementById("qty_" + safeId).innerText =
+        item ? item.qty : 0;
+}
+
+/* CALCULATE TOTAL */
+function calculateTotal(){
+    total = 0;
+    cart.forEach(item=>{ total += item.subtotal; });
+}
+
+/* RENDER POPUP CART */
+function renderCart(){
+
+    let html  = "";
+    let count = 0;
+
+    if(cart.length === 0){
+        html = "No items added.";
+    }
+    else{
+        cart.forEach(item=>{
+            count += item.qty;
+            html += `
+            <div class="order-item">
+                <span>${item.name} x ${item.qty}</span>
+                <span>₹${item.subtotal}</span>
+            </div>
+            `;
+        });
+    }
+
+    document.getElementById("popupCart").innerHTML = html;
+    document.getElementById("popupTotal").innerText = total;
+    document.getElementById("cartCount").innerText  = count;
+}
+
+/* GENERATE BILL */
+async function generateBill(){
+
+    if(cart.length === 0){
+        alert("Please add items first");
+        return;
+    }
+
+    const response = await fetch("/place_order",{
+        method:  "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({
+            items: cart.map(i =>({
+                item_id:  i.item_id,
+                quantity: i.qty,
+                price:    i.price
+            })),
+            total: total
+        })
+    });
+
+    const result = await response.json();
+    console.log(result);
+
+    if(!result.success){
+        alert("Order failed: " + result.error);
+        return;
+    }
+
+    // SHOW BILL
+    document.getElementById("billArea").style.display = "block";
+    document.getElementById("billOrderId").innerText  = result.order_id;
+
+    let billHTML = "";
+    cart.forEach(item=>{
+        billHTML += `
+        <div class="order-item">
+            <span>${item.name} x ${item.qty}</span>
+            <span>₹${item.subtotal}</span>
+        </div>
+        `;
+    });
+
+    document.getElementById("billItems").innerHTML = billHTML;
+    document.getElementById("billTotal").innerText = total;
+    document.getElementById("date").innerText      = new Date().toLocaleString();
+
+    window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
+}
+
+</script>
+
+</body>
+</html>

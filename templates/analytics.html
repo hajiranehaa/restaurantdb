@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurant Analytics</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+    --deep-night:#0a0e1a;
+    --midnight:#0d1b3e;
+    --indigo:#1a237e;
+    --cobalt:#1565c0;
+    --cerulean:#1e88e5;
+    --sky:#42a5f5;
+    --pale-blue:#90caf9;
+    --gold:#f9a825;
+    --amber:#ffb300;
+    --cream:#fff8e1;
+    --white-glow:rgba(255,255,255,0.08);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body{
+    min-height:100vh;
+    background: var(--deep-night);
+    font-family: 'Crimson Pro', serif;
+    color: var(--cream);
+    overflow-x: hidden;
+    cursor: none;
+}
+
+/* ─── CURSOR ─── */
+.cursor {
+  position: fixed;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff9c4, #ffb300);
+  box-shadow: 0 0 12px 4px rgba(255,200,50,0.7);
+  pointer-events: none;
+  z-index: 99999;
+  transform: translate(-50%,-50%);
+  transition: width .2s, height .2s;
+}
+
+/* ─── SKY CANVAS ─── */
+canvas#sky {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  z-index: 0;
+  opacity: 0.35;
+}
+
+.swirl-overlay {
+  position: fixed; inset:0;
+  z-index:1; pointer-events:none;
+  background:
+    radial-gradient(ellipse 120% 60% at 15% 20%, rgba(5,10,30,0.65) 0%, transparent 70%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, rgba(8,14,34,0.5) 0%, transparent 80%),
+    radial-gradient(ellipse 100% 50% at 50% 100%, rgba(5,8,20,0.8) 0%, transparent 60%);
+}
+
+.grain {
+  position: fixed; inset:0; z-index:2;
+  pointer-events:none; opacity:.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px;
+}
+
+/* ─── NAVBAR ─── */
+nav {
+  position: sticky; top:0; z-index:200;
+  display: flex; align-items:center; justify-content:space-between;
+  padding: 16px 32px;
+  background: linear-gradient(90deg, rgba(8,12,24,.96), rgba(10,20,50,.88), rgba(8,12,24,.96));
+  border-bottom: 1px solid rgba(144,202,249,.12);
+  backdrop-filter: blur(18px);
+}
+.nav-brand {
+  font-family: 'Cinzel Decorative', cursive;
+  font-size: 1.05rem;
+  color: var(--cream);
+  letter-spacing: .06em;
+  text-shadow: 0 0 20px rgba(255,200,50,.5), 0 0 40px rgba(66,165,245,.3);
+  display:flex; align-items:center; gap:10px;
+  text-decoration:none;
+}
+.nav-star {
+  width:22px; height:22px; flex-shrink:0;
+  background: radial-gradient(circle, #fff9c4 20%, #ffb300 60%, transparent 100%);
+  border-radius:50%;
+  box-shadow: 0 0 12px 5px rgba(255,183,0,.5);
+  animation: pulse-star 3s ease-in-out infinite;
+}
+@keyframes pulse-star {
+  0%,100%{ transform:scale(1);   box-shadow:0 0 12px 5px rgba(255,183,0,.5); }
+  50%    { transform:scale(1.15); box-shadow:0 0 22px 10px rgba(255,183,0,.8); }
+}
+.nav-back {
+  font-family: 'Cinzel Decorative', cursive;
+  font-size: .72rem; letter-spacing: .1em;
+  color: var(--pale-blue);
+  text-decoration: none;
+  border: 1px solid rgba(144,202,249,.3);
+  padding: 8px 20px; border-radius: 50px;
+  backdrop-filter: blur(8px);
+  transition: all .3s; cursor: none;
+}
+.nav-back:hover {
+  background: rgba(66,165,245,.12);
+  border-color: rgba(144,202,249,.7);
+  color: white;
+  box-shadow: 0 0 20px rgba(66,165,245,.3);
+}
+
+/* ─── CONTENT ─── */
+.container{
+    position:relative;
+    z-index:5;
+    padding-bottom: 80px;
+}
+
+/* ─── PAGE HEADING ─── */
+.page-heading {
+  font-family: 'Cinzel Decorative', cursive;
+  font-size: clamp(1.4rem, 3.5vw, 2.4rem);
+  font-weight: 700;
+  text-align: center;
+  padding: 50px 20px 10px;
+  background: linear-gradient(135deg,#fff9c4 0%,#ffffff 40%,#90caf9 70%,#42a5f5 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  filter: drop-shadow(0 0 24px rgba(66,165,245,.4));
+}
+.page-eyebrow {
+  font-style: italic; font-size: .95rem; letter-spacing: .3em;
+  color: var(--sky); text-transform: uppercase;
+  text-align: center; margin-bottom: 8px;
+}
+
+.cosmic-divider {
+  display:flex; align-items:center; justify-content:center;
+  gap:12px; margin:16px auto 44px; max-width:280px;
+}
+.cosmic-divider::before,.cosmic-divider::after {
+  content:''; flex:1; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(144,202,249,.5),transparent);
+}
+.divider-star { color:var(--amber); font-size:1rem; text-shadow:0 0 8px rgba(255,183,0,.8); }
+
+/* ─── GLASS CARD ─── */
+.glass{
+    background: rgba(8,18,48,0.82);
+    backdrop-filter: blur(22px);
+    border-radius: 20px;
+    padding: 24px;
+    border: 1px solid rgba(144,202,249,.2);
+    box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+    position: relative; overflow: hidden;
+}
+.glass::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(144,202,249,.25),transparent);
+  pointer-events:none;
+}
+.glass .glass{
+    background: rgba(6,14,38,0.75);
+    border-radius:15px;
+}
+
+/* ─── KPI ─── */
+.kpi-value {
+  font-family: 'Cinzel Decorative', cursive;
+  font-size: 1.9rem;
+  background: linear-gradient(135deg, #fff9c4, #ffb300);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(255,183,0,.4));
+}
+.kpi-label {
+  font-style: italic;
+  color: rgba(144,202,249,.7);
+  font-size: .95rem;
+  margin-top: 4px;
+}
+
+/* ─── SECTION TITLE ─── */
+.section-title {
+  font-family: 'Cinzel Decorative', cursive;
+  font-size: .88rem;
+  letter-spacing: .14em;
+  color: var(--sky);
+  text-align: center;
+  margin-bottom: 18px;
+  text-transform: uppercase;
+}
+.section-title-main {
+  font-family: 'Cinzel Decorative', cursive;
+  font-size: 1rem;
+  letter-spacing: .1em;
+  color: var(--cream);
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* chart canvases — NOT the sky canvas */
+#revenueChart, #roleChart, #feedbackChart {
+    max-height: 280px;
+    background: transparent !important;
+}
+
+/* feedback stats */
+.feedback-stats {
+  text-align: center;
+  margin-top: 14px;
+  font-style: italic;
+  font-size: .88rem;
+  color: rgba(144,202,249,.55);
+  letter-spacing: .05em;
+}
+.feedback-stats span {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(22px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.fade-in { opacity:0; animation: fadeUp 1s forwards; }
+.fade-in:nth-child(1){ animation-delay:.2s; }
+.fade-in:nth-child(2){ animation-delay:.4s; }
+.fade-in:nth-child(3){ animation-delay:.6s; }
+
+/* ─── FEEDBACK MODAL ─── */
+.fb-modal-overlay {
+  position: fixed; inset:0; z-index:800;
+  background: rgba(5,8,20,0.75);
+  backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.fb-modal-overlay.open { display: flex; animation: fadeUp .3s forwards; }
+
+.fb-modal {
+  background: rgba(8,18,48,0.96);
+  border: 1px solid rgba(144,202,249,.25);
+  border-radius: 24px;
+  padding: 32px 28px;
+  width: 100%; max-width: 560px;
+  max-height: 80vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 12px 60px rgba(0,0,0,0.7);
+  position: relative;
+}
+.fb-modal::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(144,202,249,.3),transparent);
+}
+
+.fb-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.fb-modal-title {
+  font-family: 'Cinzel Decorative', cursive;
+  font-size: .9rem; letter-spacing: .12em;
+}
+.fb-modal-title.positive { color: #42a5f5; }
+.fb-modal-title.negative { color: #90caf9; }
+.fb-modal-title.neutral  { color: #ffb300; }
+
+.fb-modal-close {
+  background: none; border: none; cursor: none;
+  color: rgba(144,202,249,.5); font-size: 1.4rem; line-height:1;
+  transition: color .2s;
+}
+.fb-modal-close:hover { color: var(--pale-blue); }
+
+.fb-list {
+  overflow-y: auto; flex:1;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(66,165,245,.3) transparent;
+  padding-right: 4px;
+}
+.fb-list::-webkit-scrollbar { width:4px; }
+.fb-list::-webkit-scrollbar-thumb { background:rgba(66,165,245,.3); border-radius:4px; }
+
+.fb-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(144,202,249,.08);
+  animation: fadeUp .3s forwards;
+}
+.fb-item:last-child { border-bottom: none; }
+.fb-item-name {
+  font-weight: 600; font-size: .95rem; color: var(--cream);
+  margin-bottom: 4px;
+}
+.fb-item-msg {
+  font-style: italic; font-size: .9rem;
+  color: rgba(144,202,249,.65); line-height: 1.5;
+}
+.fb-item-rating {
+  font-size: .8rem; color: var(--amber);
+  margin-top: 4px; letter-spacing: .05em;
+}
+
+.fb-empty {
+  text-align: center; padding: 40px 0;
+  font-style: italic; color: rgba(144,202,249,.35);
+}
+
+/* make stat spans clickable */
+.feedback-stats .stat-btn {
+  cursor: none;
+  transition: color .2s, text-shadow .2s;
+  text-decoration: underline dotted rgba(144,202,249,.3);
+}
+.feedback-stats .stat-btn:hover {
+  color: #fff9c4;
+  text-shadow: 0 0 10px rgba(255,183,0,.6);
+}
+</style>
+</head>
+
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="grain"></div>
+<canvas id="sky"></canvas>
+<div class="swirl-overlay"></div>
+
+<!-- FEEDBACK MODAL -->
+<div class="fb-modal-overlay" id="fbModalOverlay">
+  <div class="fb-modal">
+    <div class="fb-modal-head">
+      <span class="fb-modal-title" id="fbModalTitle">Feedbacks</span>
+      <button class="fb-modal-close" onclick="closeFbModal()">✕</button>
+    </div>
+    <div class="fb-list" id="fbList"></div>
+  </div>
+</div>
+
+<!-- NAVBAR -->
+<nav>
+  <a href="/" class="nav-brand">
+    <span class="nav-star"></span>
+    TasteKaAvenger
+  </a>
+  <a href="/" class="nav-back">← Home</a>
+</nav>
+
+<div class="container">
+
+  <p class="page-eyebrow mt-4">✦ Celestial Insights ✦</p>
+  <h1 class="page-heading">Restaurant Analytics</h1>
+  <div class="cosmic-divider">
+    <span class="divider-star">✦</span>
+    <span class="divider-star" style="font-size:.7rem">✦</span>
+    <span class="divider-star">✦</span>
+  </div>
+
+  <!-- KPI -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-4 fade-in">
+      <div class="glass text-center">
+        <div class="kpi-value">₹{{ revenue }}</div>
+        <div class="kpi-label">Total Revenue</div>
+      </div>
+    </div>
+    <div class="col-md-4 fade-in">
+      <div class="glass text-center">
+        <div class="kpi-value">{{ orders }}</div>
+        <div class="kpi-label">Total Orders</div>
+      </div>
+    </div>
+    <div class="col-md-4 fade-in">
+      <div class="glass text-center">
+        <div class="kpi-value">{{ items }}</div>
+        <div class="kpi-label">Items Sold</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revenue Chart -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-10 mx-auto">
+      <div class="glass">
+        <div class="section-title">Daily Revenue</div>
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Staff + Feedback -->
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="glass">
+        <div class="section-title-main">Team & Feedback Analytics</div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="glass">
+              <div class="section-title">Staff Distribution</div>
+              <canvas id="roleChart"></canvas>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="glass">
+              <div class="section-title">Feedback Distribution</div>
+              <canvas id="feedbackChart"></canvas>
+              <div class="feedback-stats">
+                Total: <span id="totalFeedback">0</span> &nbsp;·&nbsp;
+                Positive: <span id="positiveFeedback" class="stat-btn" onclick="openFbModal('positive')">0</span> &nbsp;·&nbsp;
+                Negative: <span id="negativeFeedback" class="stat-btn" onclick="openFbModal('negative')">0</span> &nbsp;·&nbsp;
+                Neutral: <span id="neutralFeedback" class="stat-btn" onclick="openFbModal('neutral')">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ─── SKY CANVAS SCRIPT ─── -->
+<script>
+/* Cursor */
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top  = e.clientY + 'px';
+});
+
+/* Van Gogh Sky */
+const skyCanvas = document.getElementById('sky');
+const skyCtx = skyCanvas.getContext('2d');
+function resize(){ skyCanvas.width=window.innerWidth; skyCanvas.height=window.innerHeight; }
+resize(); window.addEventListener('resize', resize);
+
+function drawSky(){
+  const w=skyCanvas.width,h=skyCanvas.height;
+  const g=skyCtx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,'#02040d'); g.addColorStop(.18,'#050c22');
+  g.addColorStop(.45,'#0a1a4a'); g.addColorStop(.75,'#0d2060');
+  g.addColorStop(1,'#030b1e');
+  skyCtx.fillStyle=g; skyCtx.fillRect(0,0,w,h);
+}
+const swirls=[];
+(function(){
+  const w=skyCanvas.width,h=skyCanvas.height;
+  for(let i=0;i<22;i++) swirls.push({
+    x:Math.random()*w,y:Math.random()*h*.7,
+    radius:40+Math.random()*120,
+    angleOffset:Math.random()*Math.PI*2,
+    speed:.003+Math.random()*.006,
+    alpha:.04+Math.random()*.08,
+    colorIdx:Math.floor(Math.random()*3),
+  });
+})();
+const sc=['rgba(30,136,229,','rgba(21,101,192,','rgba(66,165,245,'];
+function drawSwirl(s,t){
+  skyCtx.save(); skyCtx.translate(s.x,s.y);
+  skyCtx.globalAlpha=s.alpha*(0.7+0.3*Math.sin(t*s.speed*3));
+  const g=skyCtx.createRadialGradient(0,0,0,0,0,s.radius);
+  g.addColorStop(0,sc[s.colorIdx]+'0.35)');
+  g.addColorStop(.4,sc[s.colorIdx]+'0.12)');
+  g.addColorStop(1,sc[s.colorIdx]+'0)');
+  skyCtx.beginPath();
+  for(let a=0;a<Math.PI*4;a+=.05){
+    const r=(a/(Math.PI*4))*s.radius;
+    const da=s.angleOffset+a+Math.sin(t*s.speed+a*.5)*.4;
+    a===0?skyCtx.moveTo(Math.cos(da)*r,Math.sin(da)*r*.5):skyCtx.lineTo(Math.cos(da)*r,Math.sin(da)*r*.5);
+  }
+  skyCtx.strokeStyle=sc[s.colorIdx]+(s.alpha*1.5)+')'; skyCtx.lineWidth=1.5; skyCtx.stroke();
+  skyCtx.fillStyle=g; skyCtx.beginPath();
+  skyCtx.ellipse(0,0,s.radius,s.radius*.55,s.angleOffset+t*s.speed*.2,0,Math.PI*2);
+  skyCtx.fill(); skyCtx.restore();
+}
+const stars=[];
+(function(){
+  const w=skyCanvas.width,h=skyCanvas.height;
+  const n=Math.floor(w*h/3000);
+  for(let i=0;i<n;i++) stars.push({
+    x:Math.random()*w,y:Math.random()*h*.78,
+    r:.4+Math.random()*1.6,
+    phase:Math.random()*Math.PI*2,
+    speed:.4+Math.random()*1.2,
+    halo:Math.random()>.85,
+  });
+})();
+function drawStar(s,t){
+  const tw=.5+.5*Math.sin(t*s.speed+s.phase);
+  if(s.halo){
+    const g=skyCtx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r*6);
+    g.addColorStop(0,`rgba(255,252,220,${.25*tw})`);
+    g.addColorStop(.4,`rgba(144,202,249,${.1*tw})`);
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    skyCtx.fillStyle=g; skyCtx.beginPath(); skyCtx.arc(s.x,s.y,s.r*6,0,Math.PI*2); skyCtx.fill();
+  }
+  skyCtx.beginPath(); skyCtx.arc(s.x,s.y,s.r*(.8+.2*tw),0,Math.PI*2);
+  skyCtx.fillStyle=`rgba(255,252,220,${.5+.5*tw})`; skyCtx.fill();
+}
+function drawMoon(t){
+  const w=skyCanvas.width, mx=w*.82, my=90, p=.96+.04*Math.sin(t*.4);
+  [80,55,35].forEach((r,i)=>{
+    const g=skyCtx.createRadialGradient(mx,my,0,mx,my,r*p);
+    g.addColorStop(0,`rgba(255,249,196,${.04-i*.01})`);
+    g.addColorStop(.5,`rgba(66,165,245,${.03-i*.005})`);
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    skyCtx.fillStyle=g; skyCtx.beginPath(); skyCtx.arc(mx,my,r*p,0,Math.PI*2); skyCtx.fill();
+  });
+  const mg=skyCtx.createRadialGradient(mx-5,my-5,2,mx,my,22*p);
+  mg.addColorStop(0,'#fffde7'); mg.addColorStop(.6,'#fff9c4'); mg.addColorStop(1,'#ffe082');
+  skyCtx.beginPath(); skyCtx.arc(mx,my,22*p,0,Math.PI*2);
+  skyCtx.fillStyle=mg; skyCtx.shadowColor='#fff9c4'; skyCtx.shadowBlur=30; skyCtx.fill(); skyCtx.shadowBlur=0;
+}
+function drawHills(){
+  const w=skyCanvas.width,h=skyCanvas.height;
+  skyCtx.save();
+  const hg=skyCtx.createLinearGradient(0,h*.72,0,h);
+  hg.addColorStop(0,'#05091a'); hg.addColorStop(1,'#020408');
+  skyCtx.fillStyle=hg; skyCtx.beginPath(); skyCtx.moveTo(0,h);
+  [[0,h*.88],[w*.12,h*.78],[w*.25,h*.82],[w*.38,h*.75],[w*.50,h*.80],
+   [w*.63,h*.73],[w*.78,h*.79],[w*.88,h*.76],[w,h*.83],[w,h]]
+  .forEach(([px,py])=>skyCtx.lineTo(px,py));
+  skyCtx.closePath(); skyCtx.fill(); skyCtx.restore();
+}
+let T=0;
+function animateSky(){ T+=.012; drawSky(); swirls.forEach(s=>drawSwirl(s,T)); stars.forEach(s=>drawStar(s,T)); drawMoon(T); drawHills(); requestAnimationFrame(animateSky); }
+animateSky();
+
+/* ─── VAN GOGH CHART DEFAULTS ─── */
+/* Palette: deep blues, swirl cyan, gold/amber, cream, indigo */
+const VG_COLORS = [
+  '#42a5f5', /* sky blue */
+  '#ffb300', /* amber gold */
+  '#90caf9', /* pale blue */
+  '#fff9c4', /* cream yellow */
+  '#1e88e5', /* cerulean */
+  '#f9a825', /* gold */
+  '#1565c0', /* cobalt */
+  '#e3f2fd', /* near white */
+  '#ff8f00', /* deep amber */
+  '#0d47a1', /* deep indigo */
+];
+
+Chart.defaults.color = 'rgba(224,242,254,0.75)';
+Chart.defaults.borderColor = 'rgba(144,202,249,0.12)';
+Chart.defaults.font.family = "'Crimson Pro', serif";
+Chart.defaults.font.size = 13;
+
+/* ─── DATA (same as original, demo values) ─── */
+const employees = [
+  [1,'Zoi','Chef'],[2,'Iver','Waiter'],[3,'John','Manager'],
+  [4,'Gori','Cashier'],[5,'Ayaan','Chef'],[6,'Zara','Waiter'],
+  [7,'Ibram','Cleaner'],[8,'Sara','Receptionist'],
+  [9,'Ali','Chef'],[10,'Meera','Waiter']
+];
+
+const labels = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const data   = [3200, 4100, 2800, 5600, 4900, 7200, 6100];
+
+const roleCount = {};
+employees.forEach(e=>{ roleCount[e[2]] = (roleCount[e[2]] || 0) + 1; });
+
+/* ─── REVENUE LINE CHART ─── */
+new Chart(document.getElementById('revenueChart'), {
+  type:'line',
+  data:{
+    labels,
+    datasets:[{
+      label:'Daily Revenue (₹)',
+      data,
+      tension: 0.45,
+      borderColor: '#42a5f5',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#ffb300',
+      pointBorderColor: '#fff9c4',
+      pointRadius: 5,
+      pointHoverRadius: 8,
+      fill: true,
+      backgroundColor: (ctx) => {
+        const chart = ctx.chart;
+        const {ctx: c, chartArea} = chart;
+        if (!chartArea) return 'transparent';
+        const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        grad.addColorStop(0, 'rgba(66,165,245,0.35)');
+        grad.addColorStop(1, 'rgba(13,27,62,0.0)');
+        return grad;
+      },
+    }]
+  },
+  options:{
+    responsive: true,
+    plugins:{
+      legend:{ labels:{ color:'rgba(224,242,254,0.75)', font:{family:"'Crimson Pro', serif", size:13} } },
+      tooltip:{
+        backgroundColor:'rgba(8,18,48,0.92)',
+        borderColor:'rgba(144,202,249,0.3)',
+        borderWidth:1,
+        titleColor:'#fff9c4',
+        bodyColor:'#90caf9',
+      }
+    },
+    scales:{
+      x:{ grid:{ color:'rgba(144,202,249,0.08)' }, ticks:{ color:'rgba(144,202,249,0.7)' } },
+      y:{ grid:{ color:'rgba(144,202,249,0.08)' }, ticks:{ color:'rgba(144,202,249,0.7)' } },
+    }
+  }
+});
+
+/* ─── ROLE DOUGHNUT ─── */
+new Chart(document.getElementById('roleChart'), {
+  type:'doughnut',
+  data:{
+    labels: Object.keys(roleCount),
+    datasets:[{
+      data: Object.values(roleCount),
+      backgroundColor: VG_COLORS.slice(0, Object.keys(roleCount).length),
+      borderColor: 'rgba(8,18,48,0.9)',
+      borderWidth: 3,
+      hoverOffset: 8,
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{
+        labels:{ color:'rgba(224,242,254,0.75)', padding:14, font:{family:"'Crimson Pro', serif", size:13} }
+      },
+      tooltip:{
+        backgroundColor:'rgba(8,18,48,0.92)',
+        borderColor:'rgba(144,202,249,0.3)',
+        borderWidth:1,
+        titleColor:'#fff9c4',
+        bodyColor:'#90caf9',
+      }
+    }
+  }
+});
+
+/* ─── FEEDBACK PIE ─── */
+const feedbackDB = JSON.parse(localStorage.getItem("galaxyDB")) || [];
+
+// inline mood detection before detectMood function is defined
+function _detectMood(f) {
+  if (f.mood) return f.mood;
+  const r = f.rating ?? f.stars ?? f.score ?? null;
+  if (r !== null) return r >= 4 ? 'positive' : r <= 2 ? 'negative' : 'neutral';
+  const txt = (f.message || f.comment || f.feedback || f.text || '').toLowerCase();
+  if (/good|great|love|amazing|excellent|perfect|best|wonderful/.test(txt)) return 'positive';
+  if (/bad|worst|terrible|awful|horrible|poor|disappoint|never/.test(txt)) return 'negative';
+  return 'neutral';
+}
+
+let positive=0, negative=0, neutral=0;
+feedbackDB.forEach(f=>{
+  const m = _detectMood(f);
+  if(m==="positive") positive++;
+  else if(m==="negative") negative++;
+  else neutral++;
+});
+document.getElementById("totalFeedback").innerText    = feedbackDB.length;
+document.getElementById("positiveFeedback").innerText = positive;
+document.getElementById("negativeFeedback").innerText = negative;
+document.getElementById("neutralFeedback").innerText  = neutral;
+
+new Chart(document.getElementById("feedbackChart"),{
+  type:"pie",
+  data:{
+    labels:["Positive","Negative","Neutral"],
+    datasets:[{
+      data:[positive||4, negative||1, neutral||2],
+      backgroundColor:['#42a5f5','#1565c0','#ffb300'],
+      borderColor:'rgba(8,18,48,0.9)',
+      borderWidth:3,
+      hoverOffset:8,
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{
+        labels:{ color:'rgba(224,242,254,0.75)', padding:14, font:{family:"'Crimson Pro', serif", size:13} }
+      },
+      tooltip:{
+        backgroundColor:'rgba(8,18,48,0.92)',
+        borderColor:'rgba(144,202,249,0.3)',
+        borderWidth:1,
+        titleColor:'#fff9c4',
+        bodyColor:'#90caf9',
+      }
+    },
+    onClick(e, elements){
+      if(!elements.length) return;
+      const moodMap = ['positive','negative','neutral'];
+      openFbModal(moodMap[elements[0].index]);
+    }
+  }
+});
+
+/* ─── FEEDBACK MODAL LOGIC ─── */
+const moodMeta = {
+  positive: { label:'✦ Positive Feedbacks', cls:'positive' },
+  negative: { label:'✦ Negative Feedbacks', cls:'negative' },
+  neutral:  { label:'✦ Neutral Feedbacks',  cls:'neutral'  },
+};
+
+// Auto-detect mood from any common field name
+function detectMood(f) {
+  if (f.mood) return f.mood;
+  const r = f.rating ?? f.stars ?? f.score ?? null;
+  if (r !== null) {
+    if (r >= 4) return 'positive';
+    if (r <= 2) return 'negative';
+    return 'neutral';
+  }
+  // try text sentiment keywords as last resort
+  const txt = (f.message || f.comment || f.feedback || f.text || '').toLowerCase();
+  if (/good|great|love|amazing|excellent|perfect|best|wonderful/.test(txt)) return 'positive';
+  if (/bad|worst|terrible|awful|horrible|poor|disappoint|never/.test(txt)) return 'negative';
+  return 'neutral';
+}
+
+// Pull text from whatever field exists
+function getText(f) {
+  return f.message || f.comment || f.feedback || f.text || f.review || '';
+}
+
+// Pull name from whatever field exists
+function getName(f) {
+  return f.name || f.username || f.user || f.customer || 'Anonymous';
+}
+
+// Pull rating from whatever field exists
+function getRating(f) {
+  return f.rating ?? f.stars ?? f.score ?? null;
+}
+
+function openFbModal(mood) {
+  // Tag every entry with detected mood, then filter
+  const allEntries = feedbackDB.map(f => ({ ...f, _mood: detectMood(f) }));
+  const filtered = allEntries.filter(f => f._mood === mood);
+  const meta = moodMeta[mood];
+
+  const titleEl = document.getElementById('fbModalTitle');
+  titleEl.textContent = meta.label;
+  titleEl.className = 'fb-modal-title ' + meta.cls;
+
+  const listEl = document.getElementById('fbList');
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="fb-empty">No feedbacks in this category yet.</div>';
+  } else {
+    listEl.innerHTML = filtered.map(f => {
+      const r = getRating(f);
+      const stars = r !== null
+        ? `<div class="fb-item-rating">${'★'.repeat(Math.round(r))}${'☆'.repeat(5 - Math.round(r))}</div>`
+        : '';
+      const txt = getText(f);
+      // show ALL keys as fallback if nothing matched
+      const fallback = !txt && !r
+        ? `<div class="fb-item-msg" style="opacity:.45">${JSON.stringify(f, null, 1).slice(0,120)}…</div>`
+        : '';
+      return `
+        <div class="fb-item">
+          <div class="fb-item-name">${getName(f)}</div>
+          ${txt ? `<div class="fb-item-msg">"${txt}"</div>` : ''}
+          ${stars}
+          ${fallback}
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('fbModalOverlay').classList.add('open');
+}
+
+function closeFbModal() {
+  document.getElementById('fbModalOverlay').classList.remove('open');
+}
+
+document.getElementById('fbModalOverlay').addEventListener('click', function(e){
+  if(e.target === this) closeFbModal();
+});
+</script>
+</body>
+</html>

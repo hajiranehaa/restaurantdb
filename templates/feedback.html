@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galaxy Feedback Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{ margin:0; padding:0; box-sizing:border-box; font-family:'Poppins',sans-serif; }
+body{ overflow:hidden; height:100vh; color:white; background:#02040d; cursor:none; }
+.cursor{ position:fixed; width:20px; height:20px; border-radius:50%; background:radial-gradient(circle, #fff9c4 20%, #ffb300 65%, transparent 100%); box-shadow:0 0 14px 5px rgba(255,183,0,0.65), 0 0 30px 8px rgba(255,183,0,0.25); pointer-events:none; z-index:9999; transform:translate(-50%,-50%); transition:width 0.2s, height 0.2s, box-shadow 0.2s; mix-blend-mode:screen; }
+.cursor.big{ width:34px; height:34px; box-shadow:0 0 22px 8px rgba(255,183,0,0.8), 0 0 50px 14px rgba(255,183,0,0.35); }
+#vangoghCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+.swirl-overlay{ position:fixed; top:0; left:0; width:100%; height:100%; z-index:1; pointer-events:none; background: radial-gradient(ellipse 130% 60% at 12% 18%, rgba(21,101,192,0.14) 0%, transparent 70%), radial-gradient(ellipse 90% 80% at 82% 8%, rgba(26,35,126,0.18) 0%, transparent 65%), radial-gradient(ellipse 110% 50% at 52% 82%, rgba(13,27,62,0.30) 0%, transparent 70%); }
+.swirl-overlay::after{ content:''; position:absolute; inset:0; background-image: repeating-linear-gradient(-30deg, transparent, transparent 18px, rgba(66,165,245,0.035) 18px, rgba(66,165,245,0.035) 20px), repeating-linear-gradient(60deg, transparent, transparent 24px, rgba(144,202,249,0.025) 24px, rgba(144,202,249,0.025) 26px); }
+.grain{ position:fixed; inset:0; z-index:2; pointer-events:none; opacity:0.04; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); background-repeat:repeat; background-size:200px; }
+.space{ position:fixed; width:100%; height:100%; overflow:hidden; z-index:3; }
+.bg-star{ position:absolute; background:white; border-radius:50%; opacity:0.8; animation:twinkle 4s infinite alternate; }
+@keyframes twinkle{ from{ opacity:0.2; } to{ opacity:1; box-shadow:0 0 12px white; } }
+.panel{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:90%; max-width:520px; background:rgba(5,8,30,0.55); backdrop-filter:blur(18px); border:1px solid rgba(180,160,80,0.18); border-radius:30px; padding:28px; box-shadow:0 0 40px rgba(0,0,0,0.6), 0 0 80px rgba(30,50,120,0.3); z-index:20; }
+.panel h1{ text-align:center; margin-bottom:8px; font-size:34px; background:linear-gradient(135deg, #f5d060, #e8b84b, #fff8dc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; filter:drop-shadow(0 0 12px rgba(245,208,96,0.5)); }
+.panel p{ text-align:center; color:#b8c8f0; margin-bottom:22px; }
+input, textarea{ width:100%; padding:14px; border:none; outline:none; border-radius:16px; margin-bottom:14px; background:rgba(20,30,80,0.5); color:white; font-size:15px; border:1px solid rgba(100,130,200,0.2); transition:border-color 0.3s; }
+input:focus, textarea:focus{ border-color:rgba(180,160,80,0.5); background:rgba(20,30,80,0.7); }
+textarea{ height:120px; resize:none; }
+input::placeholder, textarea::placeholder{ color:#8899cc; }
+.launch-btn{ width:100%; padding:14px; border:none; border-radius:40px; background:linear-gradient(45deg,#1a3a8a,#c8a020,#1a3a8a); background-size:200% 200%; animation:gradientShift 4s ease infinite; color:white; font-size:16px; font-weight:600; cursor:none; transition:0.3s; }
+.launch-btn:disabled{ opacity:0.6; transform:none; }
+@keyframes gradientShift{ 0%{ background-position:0% 50%; } 50%{ background-position:100% 50%; } 100%{ background-position:0% 50%; } }
+.launch-btn:hover:not(:disabled){ transform:translateY(-2px); box-shadow:0 0 20px rgba(200,160,32,0.6), 0 0 40px rgba(26,58,138,0.4); }
+.feedback-star{ position:absolute; width:10px; height:10px; border-radius:50%; animation:floatStar 10s linear forwards; z-index:50; }
+@keyframes floatStar{ from{ transform:translateY(100vh); opacity:0; } to{ transform:translateY(-120vh); opacity:1; } }
+#successMsg{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(5,10,40,0.96); border:1px solid rgba(200,160,32,0.3); padding:12px 24px; border-radius:25px; display:none; z-index:5000; color:#f5d060; }
+#errorMsg{ display:none; background:rgba(200,50,50,0.2); border:1px solid rgba(200,80,80,0.4); border-radius:12px; padding:10px 14px; margin-top:10px; color:#ffaaaa; font-size:14px; text-align:center; }
+.star-rating-wrap{ margin-bottom:14px; }
+.star-rating-label{ display:block; font-size:13px; color:#8899cc; margin-bottom:8px; letter-spacing:0.03em; }
+.star-rating{ display:flex; gap:10px; justify-content:center; padding:10px 0 4px; }
+.star-rating .star{ font-size:32px; cursor:none; color:rgba(120,130,180,0.35); transition:color 0.18s, text-shadow 0.18s, transform 0.18s; user-select:none; line-height:1; filter:drop-shadow(0 0 0px transparent); }
+.star-rating .star.hovered, .star-rating .star.selected{ color:#f5d060; text-shadow:0 0 10px rgba(245,208,96,0.9), 0 0 22px rgba(245,180,40,0.55), 0 0 40px rgba(245,160,20,0.28); transform:scale(1.22) translateY(-3px); filter:drop-shadow(0 0 8px rgba(245,208,96,0.7)); }
+.star-rating .star.pulse{ animation:starPulse 0.35s ease; }
+@keyframes starPulse{ 0%{ transform:scale(1.22) translateY(-3px); } 40%{ transform:scale(1.45) translateY(-6px); } 100%{ transform:scale(1.22) translateY(-3px); } }
+.star-rating-hint{ text-align:center; font-size:12px; color:#7080b0; margin-top:6px; min-height:18px; transition:color 0.2s; letter-spacing:0.02em; }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="grain"></div>
+<canvas id="vangoghCanvas"></canvas>
+<div class="swirl-overlay"></div>
+<div class="space" id="space"></div>
+
+<div id="successMsg">✨ Feedback launched into galaxy</div>
+
+<div class="panel">
+    <h1>Galaxy Feedback ⭐</h1>
+    <p>Share your restaurant experience with the universe</p>
+    <input type="text"   id="nameInput"     placeholder="Your Name">
+    <input type="text"   id="tableInput"    placeholder="Table Number">
+    <input type="number" id="orderInput"    placeholder="Order Number (Bill No)">
+    <textarea            id="feedbackInput" placeholder="Write your feedback..."></textarea>
+    <div class="star-rating-wrap">
+        <span class="star-rating-label">Rate your experience</span>
+        <div class="star-rating" id="starRating">
+            <span class="star" data-val="1">★</span>
+            <span class="star" data-val="2">★</span>
+            <span class="star" data-val="3">★</span>
+            <span class="star" data-val="4">★</span>
+            <span class="star" data-val="5">★</span>
+        </div>
+        <div class="star-rating-hint" id="starHint">Tap a star to rate</div>
+    </div>
+    <button class="launch-btn" id="submitBtn" onclick="launchFeedback()">Submit Feedback 🚀</button>
+    <div id="errorMsg"></div>
+</div>
+
+<script>
+
+/* ── VAN GOGH CANVAS ── */
+(function(){
+    const canvas = document.getElementById('vangoghCanvas');
+    const ctx    = canvas.getContext('2d');
+    let W, H, t = 0;
+    function resize(){ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; initStars(); initSwirls(); initFlowParticles(); }
+    function drawSky(){ const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#02040d'); g.addColorStop(0.18,'#05091e'); g.addColorStop(0.45,'#081640'); g.addColorStop(0.72,'#0b1d52'); g.addColorStop(1,'#030b1e'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
+    let stars=[];
+    function initStars(){ stars=[]; const n=Math.floor(W*H/2800); for(let i=0;i<n;i++) stars.push({x:Math.random()*W,y:Math.random()*H*0.78,r:0.3+Math.random()*1.7,phase:Math.random()*Math.PI*2,speed:0.3+Math.random()*1.1,halo:Math.random()>0.82,gold:Math.random()>0.88}); }
+    function drawStars(){ stars.forEach(s=>{ const tw=0.5+0.5*Math.sin(t*s.speed+s.phase); const al=0.5+0.5*tw; const color=s.gold?`rgba(255,240,160,${al})`:`rgba(255,252,220,${al})`; if(s.halo){ const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r*7); g.addColorStop(0,s.gold?`rgba(255,220,80,${0.22*tw})`:`rgba(255,252,220,${0.2*tw})`); g.addColorStop(0.4,`rgba(100,160,255,${0.08*tw})`); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(s.x,s.y,s.r*7,0,Math.PI*2); ctx.fill(); } ctx.beginPath(); ctx.arc(s.x,s.y,s.r*(0.8+0.2*tw),0,Math.PI*2); ctx.fillStyle=color; ctx.fill(); }); }
+    let swirls=[]; const swirlPalette=['rgba(21,101,192,','rgba(30,136,229,','rgba(66,165,245,','rgba(100,140,200,'];
+    function initSwirls(){ swirls=[]; for(let i=0;i<20;i++) swirls.push({x:Math.random()*W,y:Math.random()*H*0.72,radius:45+Math.random()*130,ao:Math.random()*Math.PI*2,speed:0.002+Math.random()*0.005,alpha:0.04+Math.random()*0.09,ci:Math.floor(Math.random()*swirlPalette.length)}); }
+    function drawSwirl(s){ ctx.save(); ctx.translate(s.x,s.y); ctx.globalAlpha=s.alpha*(0.65+0.35*Math.sin(t*s.speed*3)); const g=ctx.createRadialGradient(0,0,0,0,0,s.radius); g.addColorStop(0,swirlPalette[s.ci]+'0.4)'); g.addColorStop(0.4,swirlPalette[s.ci]+'0.12)'); g.addColorStop(1,swirlPalette[s.ci]+'0)'); ctx.beginPath(); for(let a=0;a<Math.PI*4;a+=0.05){ const r=(a/(Math.PI*4))*s.radius; const da=s.ao+a+Math.sin(t*s.speed+a*0.5)*0.45; const px=Math.cos(da)*r,py=Math.sin(da)*r*0.5; a===0?ctx.moveTo(px,py):ctx.lineTo(px,py); } ctx.strokeStyle=swirlPalette[s.ci]+(s.alpha*1.8)+')'; ctx.lineWidth=1.2; ctx.stroke(); ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(0,0,s.radius,s.radius*0.52,s.ao+t*s.speed*0.18,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+    function drawMoon(){ const mx=W*0.84,my=90; const pulse=0.96+0.04*Math.sin(t*0.38); [90,60,38].forEach((r,i)=>{ const g=ctx.createRadialGradient(mx,my,0,mx,my,r*pulse); g.addColorStop(0,`rgba(255,249,196,${0.05-i*0.012})`); g.addColorStop(0.5,`rgba(66,165,245,${0.04-i*0.008})`); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(mx,my,r*pulse,0,Math.PI*2); ctx.fill(); }); const mg=ctx.createRadialGradient(mx-5,my-5,2,mx,my,24*pulse); mg.addColorStop(0,'#fffde7'); mg.addColorStop(0.55,'#fff9c4'); mg.addColorStop(1,'#ffe082'); ctx.beginPath(); ctx.arc(mx,my,24*pulse,0,Math.PI*2); ctx.fillStyle=mg; ctx.shadowColor='#fff9c4'; ctx.shadowBlur=32; ctx.fill(); ctx.shadowBlur=0; }
+    const NUM_P=1600; let flowP=[];
+    const galaxies=[{x:0.76,y:0.20,r:0.26,intens:1.0},{x:0.24,y:0.70,r:0.20,intens:0.85},{x:0.86,y:0.64,r:0.13,intens:0.7},{x:0.14,y:0.34,r:0.09,intens:0.55}];
+    function getAngle(x,y){ const nx=x/W,ny=y/H; let ang=Math.sin(nx*6+t*0.4)*Math.cos(ny*5-t*0.3)*Math.PI*2; galaxies.forEach(g=>{ const gx=g.x*W,gy=g.y*H,dx=x-gx,dy=y-gy; const dist=Math.sqrt(dx*dx+dy*dy),rad=g.r*Math.min(W,H); if(dist<rad*1.8){ const str=g.intens*(1-dist/(rad*1.8)); ang+=(Math.atan2(dy,dx)+Math.PI*0.5+dist*0.003)*str*2.5; } }); ang+=Math.sin(ny*3.5+t*0.2)*1.8+Math.cos(nx*4-t*0.15)*1.2; return ang; }
+    function getFlowColor(x,y){ let r=8+x/W*15,g=12+y/H*20,b=60+x/W*40; galaxies.forEach(gal=>{ const gx=gal.x*W,gy=gal.y*H,dx=x-gx,dy=y-gy; const dist=Math.sqrt(dx*dx+dy*dy),rad=gal.r*Math.min(W,H); if(dist<rad*1.5){ const s=Math.pow(1-dist/(rad*1.5),1.8)*gal.intens; r+=s*215;g+=s*155;b+=s*18; } }); const a=0.035+Math.random()*0.055; return `rgba(${Math.min(255,r|0)},${Math.min(255,g|0)},${Math.min(200,b|0)},${a})`; }
+    function initFlowParticles(){ flowP=[]; for(let i=0;i<NUM_P;i++) flowP.push({x:Math.random()*W,y:Math.random()*H,speed:0.35+Math.random()*1.1,life:Math.random()*200,maxLife:150+Math.random()*200,size:0.7+Math.random()*2.0}); }
+    function drawGalaxyGlow(){ galaxies.forEach(g=>{ const gx=g.x*W,gy=g.y*H,r=g.r*Math.min(W,H); const halo=ctx.createRadialGradient(gx,gy,0,gx,gy,r*1.6); halo.addColorStop(0,`rgba(200,160,32,${0.11*g.intens})`); halo.addColorStop(0.3,`rgba(100,120,200,${0.055*g.intens})`); halo.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=halo; ctx.beginPath(); ctx.arc(gx,gy,r*1.6,0,Math.PI*2); ctx.fill(); const core=ctx.createRadialGradient(gx,gy,0,gx,gy,r*0.48); core.addColorStop(0,`rgba(255,230,100,${0.22*g.intens})`); core.addColorStop(0.4,`rgba(200,160,40,${0.10*g.intens})`); core.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=core; ctx.beginPath(); ctx.arc(gx,gy,r*0.48,0,Math.PI*2); ctx.fill(); }); }
+    function drawHills(){ const hg=ctx.createLinearGradient(0,H*0.72,0,H); hg.addColorStop(0,'#04071a'); hg.addColorStop(1,'#020408'); ctx.fillStyle=hg; ctx.beginPath(); ctx.moveTo(0,H); [[0,H*0.90],[W*0.10,H*0.80],[W*0.22,H*0.84],[W*0.36,H*0.76],[W*0.50,H*0.82],[W*0.62,H*0.75],[W*0.76,H*0.80],[W*0.88,H*0.77],[W,H*0.85],[W,H]].forEach(([px,py])=>ctx.lineTo(px,py)); ctx.closePath(); ctx.fill(); }
+    function animate(){ requestAnimationFrame(animate); t+=0.010; drawSky(); swirls.forEach(s=>drawSwirl(s)); drawGalaxyGlow(); drawStars(); drawMoon(); ctx.fillStyle='rgba(2,4,16,0.014)'; ctx.fillRect(0,0,W,H); flowP.forEach(p=>{ p.life++; const ang=getAngle(p.x,p.y); const px2=p.x,py2=p.y; p.x+=Math.cos(ang)*p.speed; p.y+=Math.sin(ang)*p.speed; if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0; if(p.life>p.maxLife){p.x=Math.random()*W;p.y=Math.random()*H;p.life=0;p.maxLife=150+Math.random()*200;p.speed=0.35+Math.random()*1.1;} ctx.beginPath(); ctx.moveTo(px2,py2); ctx.lineTo(p.x,p.y); ctx.strokeStyle=getFlowColor(p.x,p.y); ctx.lineWidth=p.size; ctx.lineCap='round'; ctx.stroke(); }); drawHills(); }
+    window.addEventListener('resize',resize); resize(); animate();
+})();
+
+/* ── BACKGROUND STARS ── */
+for(let i=0;i<180;i++){ let s=document.createElement("div"); s.classList.add("bg-star"); let size=Math.random()*3; s.style.width=size+"px"; s.style.height=size+"px"; s.style.left=Math.random()*100+"vw"; s.style.top=Math.random()*100+"vh"; document.getElementById("space").appendChild(s); }
+
+/* ── FLOATING STAR ── */
+function createStar(color){ let s=document.createElement("div"); s.classList.add("feedback-star"); s.style.background=color; s.style.left=Math.random()*100+"vw"; s.style.boxShadow=`0 0 20px ${color}`; document.body.appendChild(s); setTimeout(()=>s.remove(),10000); }
+
+/* ── CURSOR ── */
+const cursorEl=document.getElementById('cursor');
+document.addEventListener('mousemove',e=>{ cursorEl.style.left=e.clientX+'px'; cursorEl.style.top=e.clientY+'px'; });
+document.querySelectorAll('button,input,textarea').forEach(el=>{ el.addEventListener('mouseenter',()=>cursorEl.classList.add('big')); el.addEventListener('mouseleave',()=>cursorEl.classList.remove('big')); });
+
+/* ── METEOR SYSTEM ── */
+(function(){
+    const mc=document.createElement('canvas');
+    mc.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:15;pointer-events:none;';
+    document.body.appendChild(mc);
+    const mctx=mc.getContext('2d');
+    let MW=mc.width=window.innerWidth,MH=mc.height=window.innerHeight;
+    window.addEventListener('resize',()=>{MW=mc.width=window.innerWidth;MH=mc.height=window.innerHeight;});
+    const meteors=[];
+    const colorMap={green:{head:'rgba(0,255,153,',tail:'rgba(0,255,100,',glow:'0,255,120'},red:{head:'rgba(255,59,92,',tail:'rgba(255,40,70,',glow:'255,50,80'},gold:{head:'rgba(255,209,102,',tail:'rgba(255,180,60,',glow:'255,200,80'}};
+    window.spawnMeteor=function(colorKey){ const c=colorMap[colorKey]||colorMap.gold; const fromTop=Math.random()<0.4; const sx=fromTop?Math.random()*MW*0.7:-60; const sy=fromTop?-60:Math.random()*MH*0.55; const angleDeg=-(25+Math.random()*25); const angleRad=angleDeg*Math.PI/180; meteors.push({sx,sy,x:sx,y:sy,angleRad,speed:14+Math.random()*12,tailLen:180+Math.random()*220,headR:2.5+Math.random()*2.0,c,dist:0,maxDist:MW*1.4,alive:true}); };
+    function loop(){ requestAnimationFrame(loop); mctx.fillStyle='rgba(0,0,0,0.18)'; mctx.fillRect(0,0,MW,MH); for(let i=meteors.length-1;i>=0;i--){ const m=meteors[i]; if(!m.alive){meteors.splice(i,1);continue;} m.x+=Math.cos(m.angleRad)*m.speed; m.y+=Math.sin(m.angleRad)*m.speed; m.dist+=m.speed; if(m.dist>m.maxDist){m.alive=false;continue;} const prog=m.dist/m.maxDist; const alpha=prog<0.1?prog/0.1:prog>0.75?1-(prog-0.75)/0.25:1; const tx=m.x-Math.cos(m.angleRad)*m.tailLen,ty=m.y-Math.sin(m.angleRad)*m.tailLen; const tg=mctx.createLinearGradient(m.x,m.y,tx,ty); tg.addColorStop(0,m.c.tail+(alpha*0.9)+')'); tg.addColorStop(0.35,m.c.tail+(alpha*0.4)+')'); tg.addColorStop(1,m.c.tail+'0)'); mctx.save(); mctx.beginPath(); mctx.moveTo(m.x,m.y); mctx.lineTo(tx,ty); mctx.strokeStyle=tg; mctx.lineWidth=m.headR*1.6; mctx.lineCap='round'; mctx.stroke(); mctx.restore(); mctx.save(); mctx.beginPath(); mctx.moveTo(m.x,m.y); mctx.lineTo(tx,ty); mctx.strokeStyle=m.c.tail+(alpha*0.18)+')'; mctx.lineWidth=m.headR*7; mctx.lineCap='round'; mctx.filter='blur(4px)'; mctx.stroke(); mctx.restore(); mctx.filter='none'; const hg=mctx.createRadialGradient(m.x,m.y,0,m.x,m.y,m.headR*4.5); hg.addColorStop(0,m.c.head+(alpha*1.0)+')'); hg.addColorStop(0.3,m.c.head+(alpha*0.7)+')'); hg.addColorStop(0.7,m.c.head+(alpha*0.2)+')'); hg.addColorStop(1,m.c.head+'0)'); mctx.beginPath(); mctx.arc(m.x,m.y,m.headR*4.5,0,Math.PI*2); mctx.fillStyle=hg; mctx.fill(); mctx.beginPath(); mctx.arc(m.x,m.y,m.headR,0,Math.PI*2); mctx.fillStyle=`rgba(255,255,255,${alpha})`; mctx.fill(); } }
+    loop();
+})();
+
+function excellentStarShower(){ for(let i=0;i<22;i++) setTimeout(()=>window.spawnMeteor('green'),i*120); for(let j=0;j<30;j++) setTimeout(()=>createStar("#00ff99"),j*80); }
+
+/* ── STAR RATING ── */
+const starHints=['','Terrible 😞','Poor 😕','Okay 😐','Good 😊','Excellent 🌟'];
+let selectedRating=0;
+const starEls=document.querySelectorAll('#starRating .star');
+const starHintEl=document.getElementById('starHint');
+
+starEls.forEach(star=>{
+    const val=parseInt(star.dataset.val);
+    star.addEventListener('mouseenter',()=>{ cursorEl.classList.add('big'); highlightStars(val); starHintEl.textContent=starHints[val]; starHintEl.style.color=val>=4?'#f5d060':val===3?'#8899cc':'#ff6080'; });
+    star.addEventListener('mouseleave',()=>{ cursorEl.classList.remove('big'); highlightStars(selectedRating); starHintEl.textContent=selectedRating?starHints[selectedRating]:'Tap a star to rate'; starHintEl.style.color=''; });
+    star.addEventListener('click',()=>{
+        selectedRating=val;
+        highlightStars(val);
+        starHintEl.textContent=starHints[val];
+        starHintEl.style.color=val>=4?'#f5d060':val===3?'#8899cc':'#ff6080';
+        star.classList.remove('pulse'); void star.offsetWidth; star.classList.add('pulse');
+        window.spawnMeteor(val>=4?'gold':val===3?'gold':'red');
+    });
+});
+
+function highlightStars(upTo){ starEls.forEach(s=>{ const v=parseInt(s.dataset.val); s.classList.toggle('selected',v<=upTo); s.classList.toggle('hovered',false); }); }
+
+/* ── SUBMIT FEEDBACK → SAVES TO MySQL ── */
+async function launchFeedback(){
+
+    const name     = document.getElementById("nameInput").value.trim();
+    const table    = document.getElementById("tableInput").value.trim();
+    const order    = document.getElementById("orderInput").value.trim();
+    const text     = document.getElementById("feedbackInput").value.trim();
+    const submitBtn = document.getElementById("submitBtn");
+    const errorMsg  = document.getElementById("errorMsg");
+
+    /* ── Validation ── */
+    if(!name || !table || !order || !text){
+        errorMsg.style.display="block";
+        errorMsg.textContent="Please fill in all fields.";
+        return;
+    }
+    if(!selectedRating){
+        errorMsg.style.display="block";
+        errorMsg.textContent="Please select a star rating.";
+        return;
+    }
+
+    errorMsg.style.display="none";
+
+    /* ── Mood detection ── */
+    const lowerText=text.toLowerCase();
+    let mood="neutral";
+    ["good","great","excellent","amazing","love","best"].forEach(w=>{ if(lowerText.includes(w)) mood="positive"; });
+    ["bad","worst","terrible","poor","awful","slow","rude"].forEach(w=>{ if(lowerText.includes(w)) mood="negative"; });
+    if(selectedRating>=4) mood="positive";
+    if(selectedRating<=2) mood="negative";
+
+    /* ── Disable button while saving ── */
+    submitBtn.disabled=true;
+    submitBtn.textContent="Saving... ✨";
+
+    try {
+        /* ── SEND TO FLASK → SAVES TO MySQL ── */
+        const response = await fetch("/submit_feedback", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name:     name,
+                order:    order,
+                feedback: text,
+                mood:     mood,
+                rating:   selectedRating
+            })
+        });
+
+        const result = await response.json();
+
+        if(response.ok && (result.message || result.success)){
+
+            /* ── Celebration effects ── */
+            if(lowerText.includes("excellent") || selectedRating===5) excellentStarShower();
+            const starColor  = mood==="positive"?"#00ff99":mood==="negative"?"#ff3b5c":"#ffd166";
+            const shootColor = mood==="positive"?"green":mood==="negative"?"red":"gold";
+            createStar(starColor);
+            window.spawnMeteor(shootColor);
+
+            /* ── Show success toast ── */
+            document.getElementById("successMsg").style.display="block";
+            setTimeout(()=>document.getElementById("successMsg").style.display="none",2000);
+
+            /* ── Reset form ── */
+            document.getElementById("nameInput").value="";
+            document.getElementById("tableInput").value="";
+            document.getElementById("orderInput").value="";
+            document.getElementById("feedbackInput").value="";
+            selectedRating=0;
+            highlightStars(0);
+            starHintEl.textContent="Tap a star to rate";
+            starHintEl.style.color="";
+
+        } else {
+            errorMsg.style.display="block";
+            errorMsg.textContent="Save failed: "+(result.error||"Unknown error");
+        }
+
+    } catch(err){
+        errorMsg.style.display="block";
+        errorMsg.textContent="Could not reach server. Is Flask running? ("+err.message+")";
+    }
+
+    submitBtn.disabled=false;
+    submitBtn.textContent="Submit Feedback 🚀";
+}
+
+</script>
+</body>
+</html>
